@@ -114,4 +114,12 @@ contract("Shopping", function(accounts) {
 
     await expectThrow(contract.accept(role.seller, secrets.secret2));
   });
+
+  it("check dos attack", async function() {
+    let contract = new ProductContract(role.store);
+    await contract.initContract(role.seller, "Product 1", etowei(1), 100);
+
+    await expectThrow(contract.buy(role.seller, etowei(2), secrets.secret1Hash));
+    await expectThrow(contract.buy(role.store, etowei(2), secrets.secret1Hash));
+  });
 })

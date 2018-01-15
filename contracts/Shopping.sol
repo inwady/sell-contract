@@ -3,9 +3,9 @@ pragma solidity ^0.4.17;
 contract Shopping {
   /* states contract */
   enum SellState {
-    Open,             //
-    WaitAccept,       //
-    Closed            //
+    Open,
+    WaitAccept,
+    Closed
   }
 
   /* product info */
@@ -40,13 +40,15 @@ contract Shopping {
   }
 
   /**
-    init all variables
-    _seller ~ address of seller
-    _product_name ~ product name with data, link
-    _cost ~ amount of product (wei)
-    _ttl ~ expire time (number of blocks)
+    init product
+    _seller       ~ address of seller
+    _product_name ~ product name with data, maybe link
+    _cost         ~ amount of product (wei)
+    _ttl          ~ expire time (number of blocks)
   */
   function Shopping(address _seller, string _product_name, uint _cost, uint _ttl) public {
+    require(_cost != 0 && _ttl != 0);
+
     owner = msg.sender;
 
     sell_state = SellState.Open;
@@ -62,26 +64,29 @@ contract Shopping {
 
   /**
     function in order to buy product
-    sha256_hash ~ sha256sum or HTTPS online tool
+    sha256_hash ~ signature, use sha256sum tool or HTTPS online tool
     example hex of "secret" ~ 0x2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
   */
   function buyProduct(bytes32 sha256_hash) external payable inState(SellState.Open) {
-    require(product.start_block + product.ttl >= block.number);
+    require(msg.sender != owner && msg.sender != product.seller);
     require(msg.value >= product.cost);
+    require(product.start_block + product.ttl >= block.number);
 
     sell_state = SellState.WaitAccept;
     BuyProduct(msg.sender);
 
+    /* return rest amount */
     if (msg.value > product.cost) {
       ReturnAmount(msg.sender, msg.value - product.cost);
       msg.sender.transfer(msg.value - product.cost);
     }
 
+    /* save signature */
     secret_hash = sha256_hash;
   }
 
   /**
-    need to get money
+    in order to get money by seller
     secret ~ secret string
   */
   function acceptReceive(string secret) external onlySeller inState(SellState.WaitAccept) {
