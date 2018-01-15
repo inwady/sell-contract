@@ -1,20 +1,27 @@
 pragma solidity ^0.4.17;
 
 contract Shopping {
-  enum SellState { Open, WaitAccept, Closed }
-
-  address public owner;         // address for commision
+  /* states contract */
+  enum SellState {
+    Open,             //
+    WaitAccept,       //
+    Closed            //
+  }
 
   /* product info */
+  struct Product  {
+    address seller;        // address seller
+    string product_name;   // product name
+    uint cost;             // product cost
+
+    uint start_block;      // start block (~ now)
+    uint ttl;              // ttl - blocks of expire
+  }
+
   SellState sell_state;         // it is state of contract
+  address public owner;         // address for commision
 
-  address public seller;        // address seller
-  string public product_name;   // product name
-  uint public cost;             // product cost
-
-  uint public start_block;      // start block (~ now)
-  uint public ttl;              // ttl - blocks of expire
-
+  Product product;
   bytes32 secret_hash;          // secret signature, in state WaitAccept
 
   modifier restricted() {
@@ -23,7 +30,7 @@ contract Shopping {
   }
 
   modifier onlySeller() {
-    require(msg.sender == seller);
+    require(msg.sender == product.seller);
     _;
   }
 
@@ -44,11 +51,13 @@ contract Shopping {
 
     sell_state = SellState.Open;
 
-    seller = _seller;
-    product_name = _product_name;
-    cost = _cost;
-    start_block = block.number;
-    ttl = _ttl;
+    product = Product({
+      seller: _seller,
+      product_name: _product_name,
+      cost: _cost,
+      start_block: block.number,
+      ttl: _ttl
+    });
   }
 
   /**
@@ -57,17 +66,18 @@ contract Shopping {
     example hex of "secret" ~ 0x2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
   */
   function buyProduct(bytes32 sha256_hash) external payable inState(SellState.Open) {
-    require(start_block + ttl >= block.number);
-    require(msg.value >= cost);
-    if (msg.value > cost) {
-      ReturnAmount(msg.sender, msg.value - cost);
-      msg.sender.transfer(msg.value - cost);
-    }
-
-    secret_hash = sha256_hash;
+    require(product.start_block + product.ttl >= block.number);
+    require(msg.value >= product.cost);
 
     sell_state = SellState.WaitAccept;
     BuyProduct(msg.sender);
+
+    if (msg.value > product.cost) {
+      ReturnAmount(msg.sender, msg.value - product.cost);
+      msg.sender.transfer(msg.value - product.cost);
+    }
+
+    secret_hash = sha256_hash;
   }
 
   /**
@@ -80,9 +90,9 @@ contract Shopping {
     sell_state = SellState.Closed;
     CloseSelling();
 
-    uint commission = (cost * 6) / 100; /* commission is 6% */
+    uint commission = (product.cost * 6) / 100; /* commission is 6% */
     owner.transfer(commission); /* send amount to commission */
-    selfdestruct(seller); /* send amount to seller */
+    selfdestruct(product.seller); /* send amount to seller */
   }
 
   event BuyProduct(address whobuyme);               // product was payed
