@@ -1,0 +1,13 @@
+dist: trusty
+sudo: false
+
+install:
+  - npm install --only=dev
+
+before_script:
+  - ./node_modules/.bin/testrpc & # > /dev/null &
+  - sleep 5
+
+script:
+  - ./node_modules/.bin/truffle compile
+  - ./node_modules/.bin/truffle test
