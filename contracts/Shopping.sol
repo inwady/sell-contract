@@ -11,18 +11,20 @@ contract Shopping {
   /* product info */
   struct Product  {
     address seller;        // address seller
-    string product_name;   // product name
+    string productName;    // product name
     uint cost;             // product cost
 
-    uint start_block;      // start block (~ now)
+    uint start;       // start block (~ now)
     uint ttl;              // ttl - blocks of expire
   }
 
-  SellState sell_state;         // it is state of contract
-  address public owner;         // address for commision
+  uint constant COMMISSION_PERCENT = 6; /* % */
+
+  SellState sellState;         // it is state of contract
+  address public owner;        // address for commision
 
   Product product;
-  bytes32 secret_hash;          // secret signature, in state WaitAccept
+  bytes32 secretHash;          // secret signature, in state WaitAccept
 
   modifier restricted() {
     require(msg.sender == owner);
@@ -35,44 +37,44 @@ contract Shopping {
   }
 
   modifier inState(SellState _state) {
-    require(sell_state == _state);
+    require(sellState == _state);
     _;
   }
 
   /**
     init product
-    _seller       ~ address of seller
-    _product_name ~ product name with data, maybe link
-    _cost         ~ amount of product (wei)
-    _ttl          ~ expire time (number of blocks)
+    seller       ~ address of seller
+    productName ~ product name with data, maybe link
+    cost         ~ amount of product (wei)
+    ttl          ~ expire time (seconds)
   */
-  function Shopping(address _seller, string _product_name, uint _cost, uint _ttl) public {
-    require(_cost != 0 && _ttl != 0);
+  function Shopping(address seller, string productName, uint cost, uint ttl) public {
+    require(cost != 0 && ttl != 0);
 
     owner = msg.sender;
 
-    sell_state = SellState.Open;
+    sellState = SellState.Open;
 
     product = Product({
-      seller: _seller,
-      product_name: _product_name,
-      cost: _cost,
-      start_block: block.number,
-      ttl: _ttl
+      seller: seller,
+      productName: productName,
+      cost: cost,
+      start: now,
+      ttl: ttl
     });
   }
 
   /**
     function in order to buy product
-    sha256_hash ~ signature, use sha256sum tool or HTTPS online tool
+    sha256Hash ~ signature, use sha256sum tool or HTTPS online tool
     example hex of "secret" ~ 0x2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
   */
-  function buyProduct(bytes32 sha256_hash) external payable inState(SellState.Open) {
+  function buyProduct(bytes32 sha256Hash) external payable inState(SellState.Open) {
     require(msg.sender != owner && msg.sender != product.seller);
     require(msg.value >= product.cost);
-    require(product.start_block + product.ttl >= block.number);
+    require(product.start + product.ttl >= now);
 
-    sell_state = SellState.WaitAccept;
+    sellState = SellState.WaitAccept;
     BuyProduct(msg.sender);
 
     /* return rest amount */
@@ -82,7 +84,7 @@ contract Shopping {
     }
 
     /* save signature */
-    secret_hash = sha256_hash;
+    secretHash = sha256Hash;
   }
 
   /**
@@ -90,14 +92,14 @@ contract Shopping {
     secret ~ secret string
   */
   function acceptReceive(string secret) external onlySeller inState(SellState.WaitAccept) {
-    require(sha256(secret) == secret_hash);
+    require(sha256(secret) == secretHash);
 
-    sell_state = SellState.Closed;
+    sellState = SellState.Closed;
     CloseSelling();
 
-    uint commission = (product.cost * 6) / 100; /* commission is 6% */
-    owner.transfer(commission); /* send amount to commission */
-    selfdestruct(product.seller); /* send amount to seller */
+    uint commission = (product.cost * COMMISSION_PERCENT) / 100;  // commission
+    owner.transfer(commission);                                   // send amount to commission
+    selfdestruct(product.seller);                                 // send amount to seller
   }
 
   event BuyProduct(address whobuyme);               // product was payed

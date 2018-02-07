@@ -64,15 +64,13 @@ contract("Shopping", function(accounts) {
   tests = [true, false];
   tests.forEach(function(isExpire) {
     it("selling " + ((isExpire) ? "is" : "is not") + " expired", async function() {
-      let needPassBlocks = 10;
+      let passSeconds = 10;
 
       let contract = new ProductContract(role.store);
-      await contract.initContract(role.seller, "Product 1", etowei(1), needPassBlocks);
+      await contract.initContract(role.seller, "Product 1", etowei(1), passSeconds);
 
-      /* generate easy blocks */
-      let passBlocks = needPassBlocks - ((!isExpire) ? 1 : 0);
-      for (let i = 0; i < passBlocks; ++i)
-        web3.eth.sendTransaction({from: role.buyer2, to: role.buyer});
+      web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [ (isExpire) ? passSeconds + 1 : passSeconds - 1 ], id: 0})
+      web3.currentProvider.send({jsonrpc: "2.0", method: "evm_mine", params: [], id: 0})
 
       let promise = contract.buy(role.buyer, etowei(5), secrets.secret1Hash);
       if (!isExpire) {
