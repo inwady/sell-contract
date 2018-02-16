@@ -44,7 +44,7 @@ contract Shopping {
   /**
     init product
     seller       ~ address of seller
-    productName ~ product name with data, maybe link
+    productName  ~ product name with data, maybe link
     cost         ~ amount of product (wei)
     ttl          ~ expire time (seconds)
   */

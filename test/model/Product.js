@@ -3,7 +3,7 @@
 import Contract from './Contract';
 import { assertEvents } from '../util/assert';
 
-var Shopping = artifacts.require("Shopping");
+let Shopping = artifacts.require("Shopping");
 
 class ProductContract extends Contract {
   constructor(fromAccount) {
